@@ -1,0 +1,262 @@
+name: SK5.2 one-shot Core import
+
+on:
+  push:
+    branches:
+      - sk5.2/canonical-core-import
+
+permissions:
+  contents: write
+
+jobs:
+  import-core:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout pinned audited source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/casalealessandro/adminComeMiVesto.git /tmp/source
+          git -C /tmp/source checkout --quiet 86bff71e09fd586a69e12e8da1216df3d2210411
+
+      - name: Import canonical Core and styles
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf src/app/core
+          mkdir -p src/app/core src/styles scripts
+
+          for capability in data-grid forms layout popup overlay dialogs ui; do
+            cp -R "/tmp/source/src/app/core/${capability}" "src/app/core/${capability}"
+          done
+          cp /tmp/source/src/app/core/public-api.ts src/app/core/public-api.ts
+          cp /tmp/source/src/styles/admin-core.scss src/styles/admin-core.scss
+          cp /tmp/source/src/styles/admin-theme-default.scss src/styles/admin-theme-default.scss
+
+          # SK.4 migration bridges are not product code and must not enter AdminForge.
+          rm -rf src/app/core/forms/custom-scrollbar
+          rm -rf src/app/core/popup/caption
+
+      - name: Normalize Core imports and neutralize legacy DataGrid adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          core = Path('src/app/core')
+
+          replacements = {
+              "../../services/popup.service": "../../popup/popup.service",
+              "../../widgets/ui-dialogs": "../../dialogs/ui-dialogs",
+              "../../services/form-definition-repository": "../contracts/form-definition-repository",
+              "../../interface/dynamic-form-field": "../models/dynamic-form-field",
+              "../../../../interface/dynamic-form-field": "../../../models/dynamic-form-field",
+              "../../../../services/form-options-provider": "../../../contracts/form-options-provider",
+              "../custom-scrollbar/custom-scrollbar.component": "../../ui/custom-scrollbar/custom-scrollbar.component",
+              "../../../services/popup.service": "../../popup.service",
+              "../../caption/caption.component": "../../../ui/caption/caption.component",
+          }
+
+          for path in core.rglob('*.ts'):
+              text = path.read_text(encoding='utf-8')
+              for old, new in replacements.items():
+                  text = text.replace(old, new)
+              path.write_text(text, encoding='utf-8')
+
+          # ElementComponent carried an unused migration-era DataGrid import.
+          element = core / 'forms/form-builder/element/element.component.ts'
+          text = element.read_text(encoding='utf-8')
+          text = text.replace("import { DataGridComponent } from '../../../components/data-grid/data-grid.component';\n", '')
+          element.write_text(text, encoding='utf-8')
+
+          # Canonical DataGrid imports + neutral legacy adapter token.
+          grid = core / 'data-grid/data-grid.component.ts'
+          text = grid.read_text(encoding='utf-8')
+          text = text.replace(
+              "import { ColData, Colonne, detailOptions, ToolbarButton } from '../../interface/app.interface';",
+              "import { ColData, Colonne, detailOptions } from './models/data-grid.models';\nimport { ToolbarButton } from '../ui/caption/toolbar-button';"
+          )
+          text = text.replace("import { alert, confirm } from '../../widgets/ui-dialogs';", "import { alert, confirm } from '../dialogs/ui-dialogs';")
+          text = text.replace("import { AnagraficaService } from '../../services/anagrafica.service';", "import { LEGACY_GRID_DATA_ADAPTER } from './data-grid-legacy-adapter';")
+          text = text.replace("import { CustomScrollbarComponent } from '../custom-scrollbar/custom-scrollbar.component';", "import { CustomScrollbarComponent } from '../ui/custom-scrollbar/custom-scrollbar.component';")
+          text = text.replace("import { OverlayService } from '../../services/overlay.service';", "import { OverlayService } from '../overlay/overlay.service';")
+          text = text.replace(
+              '  anagraficaService = inject(AnagraficaService);',
+              "  legacyDataAdapter = inject(LEGACY_GRID_DATA_ADAPTER, { optional: true });\n\n  private requireLegacyDataAdapter() {\n    if (!this.legacyDataAdapter) {\n      throw new Error('Legacy DataGrid service/api mode requires LEGACY_GRID_DATA_ADAPTER. Prefer GridDataProvider.');\n    }\n    return this.legacyDataAdapter;\n  }"
+          )
+          text = text.replace('this.anagraficaService.', 'this.requireLegacyDataAdapter().')
+          grid.write_text(text, encoding='utf-8')
+
+          td = core / 'data-grid/td-item/td-item.component.ts'
+          text = td.read_text(encoding='utf-8')
+          text = text.replace("import { AnagraficaService } from '../../../services/anagrafica.service';", "import { LEGACY_GRID_DATA_ADAPTER } from '../data-grid-legacy-adapter';")
+          text = text.replace("import { alert, showPopover } from '../../../widgets/ui-dialogs';", "import { alert, showPopover } from '../../dialogs/ui-dialogs';")
+          text = text.replace("import { OverlayComponent } from '../../overlay-component/overlay.component';", "import { OverlayComponent } from '../../overlay/overlay.component';")
+          text = text.replace("import { OverlayService } from '../../../services/overlay.service';", "import { OverlayService } from '../../overlay/overlay.service';")
+          text = text.replace("import { button } from '../../../interface/app.interface';", "import { button } from '../models/data-grid.models';")
+          text = text.replace(
+              '  anagraficaService = inject(AnagraficaService)',
+              "  legacyDataAdapter = inject(LEGACY_GRID_DATA_ADAPTER, { optional: true })\n\n  private requireLegacyDataAdapter() {\n    if (!this.legacyDataAdapter) {\n      throw new Error('Legacy DataGrid lookup mode requires LEGACY_GRID_DATA_ADAPTER. Prefer GridLookupRegistry providers.');\n    }\n    return this.legacyDataAdapter;\n  }"
+          )
+          text = text.replace('this.anagraficaService.', 'this.requireLegacyDataAdapter().')
+          td.write_text(text, encoding='utf-8')
+
+          legacy = core / 'data-grid/data-grid-legacy-adapter.ts'
+          legacy.write_text("""import { InjectionToken } from '@angular/core';
+          import { Observable } from 'rxjs';
+
+          /**
+           * Optional compatibility adapter for the historical DataGrid service/api mode.
+           * New integrations should prefer GridDataProvider, GridDetailDataProvider and lookup providers.
+           */
+          export interface LegacyGridDataAdapter {
+            getElenco(api: any, queryString?: string): Observable<any>;
+            actionDelete(api: any, id: any): Promise<any>;
+            getValue(api: any, value: any, queryString?: string): Promise<any>;
+          }
+
+          export const LEGACY_GRID_DATA_ADAPTER =
+            new InjectionToken<LegacyGridDataAdapter>('LEGACY_GRID_DATA_ADAPTER');
+          """.replace('          ', ''), encoding='utf-8')
+
+          public_api = core / 'public-api.ts'
+          text = public_api.read_text(encoding='utf-8')
+          marker = "export * from './data-grid/data-grid-provider';\n"
+          if "data-grid-legacy-adapter" not in text:
+              text = text.replace(marker, marker + "export * from './data-grid/data-grid-legacy-adapter';\n")
+          public_api.write_text(text, encoding='utf-8')
+
+          # Tests coupled to the old concrete ComeMiVesto service are host characterization tests,
+          # not neutral Starter Kit tests. Keep the provider-neutral Core suite only.
+          for spec in core.rglob('*.spec.ts'):
+              source = spec.read_text(encoding='utf-8')
+              if 'AnagraficaService' in source or '/services/anagrafica.service' in source:
+                  spec.unlink()
+
+          Path('src/styles.scss').write_text(
+              "@import 'bootstrap/scss/bootstrap';\n@import './styles/admin-theme-default';\n@import './styles/admin-core';\n",
+              encoding='utf-8'
+          )
+
+          package = json.loads(Path('package.json').read_text(encoding='utf-8'))
+          package['scripts']['test:core-boundaries'] = 'node scripts/check-core-boundaries.mjs'
+          package['scripts']['test:data-grid'] = "ng test --watch=false --browsers=ChromeHeadless --include='src/app/core/data-grid/**/*.spec.ts'"
+          package['devDependencies']['@angular/localize'] = '^17.3.12'
+          Path('package.json').write_text(json.dumps(package, indent=2) + '\n', encoding='utf-8')
+          PY
+
+      - name: Add strict neutral Core boundary gate
+        shell: bash
+        run: |
+          cat > scripts/check-core-boundaries.mjs <<'EOF'
+          import { readFileSync, readdirSync, statSync } from 'node:fs';
+          import { dirname, extname, join, normalize, relative, resolve, sep } from 'node:path';
+          import { fileURLToPath } from 'node:url';
+
+          const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+          const coreRoot = resolve(repoRoot, 'src/app/core');
+          const normalizePath = value => normalize(value).split(sep).join('/');
+          const corePrefix = `${normalizePath(coreRoot)}/`;
+          const forbiddenPackages = ['@angular/fire', 'firebase'];
+          const importPattern = /(?:import|export)\s+(?:[\s\S]*?\s+from\s+)?['"]([^'"]+)['"]|import\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+
+          function listTypeScriptFiles(directory) {
+            return readdirSync(directory).flatMap(name => {
+              const entry = join(directory, name);
+              const stats = statSync(entry);
+              if (stats.isDirectory()) return listTypeScriptFiles(entry);
+              if (entry.endsWith('.spec.ts')) return [];
+              return extname(entry) === '.ts' ? [entry] : [];
+            });
+          }
+
+          const violations = [];
+          for (const file of listTypeScriptFiles(coreRoot)) {
+            const source = readFileSync(file, 'utf8');
+            const sourcePath = normalizePath(relative(repoRoot, file));
+            for (const match of source.matchAll(importPattern)) {
+              const specifier = match[1] ?? match[2];
+              if (!specifier) continue;
+              if (forbiddenPackages.some(prefix => specifier === prefix || specifier.startsWith(`${prefix}/`))) {
+                violations.push(`${sourcePath} -> ${specifier} (forbidden package)`);
+                continue;
+              }
+              if (specifier.includes('environments/')) {
+                violations.push(`${sourcePath} -> ${specifier} (environment import)`);
+                continue;
+              }
+              if (!specifier.startsWith('.')) continue;
+              const target = normalizePath(resolve(dirname(file), specifier));
+              if (target === normalizePath(coreRoot) || target.startsWith(corePrefix)) continue;
+              violations.push(`${sourcePath} -> ${specifier} (escapes src/app/core)`);
+            }
+          }
+
+          if (violations.length) {
+            console.error('AdminForge Core boundary violations found:');
+            violations.forEach(v => console.error(`- ${v}`));
+            process.exit(1);
+          }
+          console.log('AdminForge Core boundary check passed with zero legacy escapes.');
+          EOF
+
+      - name: Strengthen permanent CI
+        shell: bash
+        run: |
+          cat > .github/workflows/ci.yml <<'EOF'
+          name: AdminForge CI
+
+          on:
+            pull_request:
+            push:
+              branches: [master]
+
+          jobs:
+            verify:
+              runs-on: ubuntu-latest
+              steps:
+                - name: Checkout
+                  uses: actions/checkout@v4
+                - name: Setup Node 20
+                  uses: actions/setup-node@v4
+                  with:
+                    node-version: 20
+                    cache: npm
+                - name: Install dependencies
+                  run: npm install
+                - name: Core boundary
+                  run: npm run test:core-boundaries
+                - name: DataGrid Core tests
+                  run: npm run test:data-grid
+                - name: Build development
+                  run: npm run build -- --configuration development
+          EOF
+
+      - name: Validate imported neutral Core
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install
+          npm run test:core-boundaries
+          npm run test:data-grid
+          npm run build -- --configuration development
+          ! grep -RInE '@angular/fire|from ["'"']firebase|AnagraficaService|environments/' src/app/core
+
+      - name: Commit imported tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/sk5-2-inspect.yml .github/workflows/sk5-2-import.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'refactor(admin-forge): import neutral canonical Core'
+          git push origin HEAD:sk5.2/canonical-core-import
