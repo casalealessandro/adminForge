@@ -1,0 +1,49 @@
+name: AdminForge Backend CI
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/adminforge-backend-ci.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/adminforge-backend-ci.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: adminforge
+          POSTGRES_USER: adminforge
+          POSTGRES_PASSWORD: adminforge
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U adminforge -d adminforge"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DATABASE_URL: postgresql://adminforge:adminforge@localhost:5432/adminforge
+      CORS_ORIGIN: http://localhost:4200
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install backend dependencies
+        run: npm install
+      - name: Build backend
+        run: npm run build
+      - name: Run backend tests
+        run: npm test
+      - name: Initialize demo database
+        run: npm run db:setup
