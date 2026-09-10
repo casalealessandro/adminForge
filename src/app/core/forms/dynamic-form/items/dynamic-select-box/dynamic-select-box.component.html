@@ -1,0 +1,34 @@
+<ng-container *ngIf="!this.selectOptions.multiple; else selectMultiple">
+  <div  [formGroup]="formGroup">
+    <select
+      class="form-control" 
+      [formControlName]="fieldName"
+      (change)="onValueChange($event)"
+      
+      >
+      <option *ngIf="isLoading" [ngValue]="null" disabled>
+        Caricamento in corso...
+      </option>
+      <option [ngValue]="null">
+        Seleziona una opzione...
+      </option>
+    <option *ngFor="let option of availableOptions" [ngValue]="option[valueExp]">
+      {{ option[displayExp] }}
+    </option>
+  </select>
+  </div>
+  
+</ng-container>
+
+<ng-template #selectMultiple>
+  <select
+   class="form-control" 
+    [multiple]="true"
+    [formControlName]="fieldName"
+    (change)="onValueChange($event)"
+    >
+    <option *ngFor="let option of availableOptions" [ngValue]="option[valueExp]">
+      {{ option[displayExp] }}
+    </option>
+  </select>
+</ng-template>
