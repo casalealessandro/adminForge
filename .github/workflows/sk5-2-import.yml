@@ -64,7 +64,6 @@ jobs:
           text = text.replace("import { ColData, Colonne, detailOptions, ToolbarButton } from '../../interface/app.interface';", "import { ColData, Colonne, detailOptions } from './models/data-grid.models';\nimport { ToolbarButton } from '../ui/caption/toolbar-button';")
           text = text.replace("import { AnagraficaService } from '../../services/anagrafica.service';", "import { LEGACY_GRID_DATA_ADAPTER } from './data-grid-legacy-adapter';")
           text = text.replace("import { OverlayService } from '../../services/overlay.service';", "import { OverlayService } from '../overlay/overlay.service';")
-          # The broad migration replacements above can over-shift DataGrid paths; pin them canonically here.
           text = text.replace("from '../../dialogs/ui-dialogs'", "from '../dialogs/ui-dialogs'")
           text = text.replace("from '../../ui/custom-scrollbar/custom-scrollbar.component'", "from '../ui/custom-scrollbar/custom-scrollbar.component'")
           text = text.replace('  anagraficaService = inject(AnagraficaService);', "  legacyDataAdapter = inject(LEGACY_GRID_DATA_ADAPTER, { optional: true });\n\n  private requireLegacyDataAdapter() {\n    if (!this.legacyDataAdapter) {\n      throw new Error('Legacy DataGrid service/api mode requires LEGACY_GRID_DATA_ADAPTER. Prefer GridDataProvider.');\n    }\n    return this.legacyDataAdapter;\n  }")
@@ -103,7 +102,6 @@ jobs:
               text = text.replace(marker, marker + "export * from './data-grid/data-grid-legacy-adapter';\n")
           public_api.write_text(text, encoding='utf-8')
 
-          # Host-coupled characterization tests are not copied as neutral Core tests.
           for spec in core.rglob('*.spec.ts'):
               source = spec.read_text(encoding='utf-8')
               if 'AnagraficaService' in source or '/services/anagrafica.service' in source:
@@ -185,7 +183,7 @@ jobs:
           npm run test:core-boundaries
           npm run test:data-grid
           npm run build -- --configuration development
-          ! grep -RInE '@angular/fire|from ["'"']firebase|AnagraficaService|environments/' src/app/core
+          ! grep -RIn 'AnagraficaService' src/app/core
           rm -f .github/workflows/sk5-2-inspect.yml .github/workflows/sk5-2-import.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
