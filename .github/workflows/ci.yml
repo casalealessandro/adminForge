@@ -1,13 +1,12 @@
 name: AdminForge CI
 
 on:
-  push:
-    branches: [master]
   pull_request:
+  push:
     branches: [master]
 
 jobs:
-  build:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -16,7 +15,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+      - name: Core boundary
+        run: npm run test:core-boundaries
+      - name: DataGrid Core tests
+        run: npm run test:data-grid
       - name: Build development
         run: npm run build -- --configuration development
