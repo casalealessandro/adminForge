@@ -1,0 +1,108 @@
+.header {
+    background-color: #F1F1F1;
+    //background-image:linear-gradient(90deg, rgba(2,57,87,1) 0%, rgba(4,80,114,1) 87%);
+    height: 65px;
+
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1100; /* Superiore al menu */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+
+    .header-container {
+        max-height: var(--header_height);
+        margin: auto;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-content: center;
+        justify-content: space-between;
+        align-items: center;
+        color: var(--link-nav);
+        gap: 25px;
+        
+        .hamburger{
+            display: none;
+            background: #F1F1F1;
+            color: var(--bianco);
+            z-index: 10002;
+            position: absolute;
+            display: block;
+            top: 0;
+            left: 0;
+            
+        }
+        .item-left,
+        .item-right,
+        .item-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: row;
+            margin-left: 10px;
+
+            .itm-container {
+                margin: 0 5px;
+            }
+        }
+
+        .logo-container {
+            padding-left: 10px;
+            width: 200px;
+
+            .logo-image {
+                max-width: 100%;
+                height: auto;
+                margin-top: 15px;
+
+            }
+        }
+
+    }
+}
+    .profile-info {
+        display: flex;
+        align-items: center;
+        position: relative;
+        cursor: pointer;
+        padding: 5px 20px;
+      
+      }
+      
+      .profile-img {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        box-shadow: 0 2px 2px rgba(0, 0, 0, 0.3);
+        transition: all 0.3s ease;
+      }
+      
+      .profile-img:hover {
+        transform: scale(1.1);
+        border-color: #ffffff;
+      }
+      
+       
+      .dropdown-item {
+        cursor: pointer;
+        transition: background 0.3s;
+        color: #333;
+        margin-top: 15px;
+        font-size: 16px;
+      }
+      
+      .dropdown-item:hover {
+        background-color: rgba(0, 0, 0, 0.1);
+      } 
+       .userProfile {
+        cursor: no-drop;
+       }
+       .hamburger .mdi-menu {
+        font-size: 20px;
+        color: var(--primary);
+      }
+      .button-info{
+        background-color: transparent;
+      }
+    

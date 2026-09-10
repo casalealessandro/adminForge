@@ -1,0 +1,74 @@
+.mi-container {
+    &.menu-over {
+        .verticalMenucontainer {
+            width: 250px;
+            transform: translateX(-110%);
+            transition: transform .2s;
+            background: #fff;
+        }
+
+        .verticalMenucontainer.open {
+            transform: translateX(0);
+        }
+
+        .ana-container {
+            width: 100%;
+            max-width: none;
+            margin: 0;
+        }
+    }
+
+    &.menu-side {
+        .verticalMenucontainer {
+            width: 100px;
+        }
+
+        .ana-container {
+            margin-left: 100px;
+            width: calc(100% - 100px);
+        }
+    }
+
+    &.menu-push {
+        .verticalMenucontainer {
+            width: 250px;
+        }
+
+        .ana-container {
+            margin-left: 250px;
+            width: calc(100% - 250px);
+        }
+    }
+
+    .ana-container {
+        max-width: none;
+        padding-inline: clamp(.75rem, 2vw, 2.5rem) !important;
+    }
+
+    .verticalMenucontainer {
+        position: fixed;
+        top: 65px;
+        bottom: 0;
+        left: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+        z-index: 1001;
+        box-sizing: border-box;
+        border: 1px solid var(--border_color);
+    }
+
+    .menu-backdrop {
+        position: fixed;
+        inset: 65px 0 0;
+        border: 0;
+        background: #0008;
+        z-index: 1000;
+    }
+}
+
+::ng-deep.menu-open {
+    .hamburger {
+        background: var(--bianco) !important;
+        color: var(--primary) !important;
+    }
+}
