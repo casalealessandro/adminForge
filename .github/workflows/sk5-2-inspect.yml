@@ -1,0 +1,28 @@
+name: SK5.2 source inspection
+
+on:
+  push:
+    branches:
+      - sk5.2/canonical-core-import
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target
+        uses: actions/checkout@v4
+      - name: Inspect pinned source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/casalealessandro/adminComeMiVesto.git /tmp/source
+          git -C /tmp/source checkout --quiet 86bff71e09fd586a69e12e8da1216df3d2210411
+          echo '=== DataGrid AnagraficaService usages ==='
+          grep -n -C 5 'anagraficaService\|AnagraficaService' /tmp/source/src/app/core/data-grid/data-grid.component.ts || true
+          echo '=== TdItem AnagraficaService usages ==='
+          grep -n -C 8 'anagraficaService\|AnagraficaService' /tmp/source/src/app/core/data-grid/td-item/td-item.component.ts || true
+          echo '=== Core relative imports escaping canonical capability folders ==='
+          grep -RInE "from ['\"](\.\./)+(services|interface|widgets|components|custom-scrollbar|overlay-component)/" /tmp/source/src/app/core/data-grid /tmp/source/src/app/core/forms /tmp/source/src/app/core/popup || true
