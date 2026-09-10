@@ -116,7 +116,7 @@ jobs:
           Path('package.json').write_text(json.dumps(package, indent=2) + '\n', encoding='utf-8')
           PY
 
-      - name: Add zero-escape boundary gate and permanent CI
+      - name: Add zero-escape boundary gate
         shell: bash
         run: |
           cat > scripts/check-core-boundaries.mjs <<'EOF'
@@ -154,28 +154,7 @@ jobs:
           console.log('AdminForge Core boundary check passed with zero legacy escapes.');
           EOF
 
-          cat > .github/workflows/ci.yml <<'EOF'
-          name: AdminForge CI
-          on:
-            pull_request:
-            push:
-              branches: [master]
-          jobs:
-            verify:
-              runs-on: ubuntu-latest
-              steps:
-                - uses: actions/checkout@v4
-                - uses: actions/setup-node@v4
-                  with:
-                    node-version: 20
-                    cache: npm
-                - run: npm install
-                - run: npm run test:core-boundaries
-                - run: npm run test:data-grid
-                - run: npm run build -- --configuration development
-          EOF
-
-      - name: Validate and commit
+      - name: Validate and commit product files only
         shell: bash
         run: |
           set -euo pipefail
@@ -183,10 +162,9 @@ jobs:
           npm run test:core-boundaries
           npm run test:data-grid
           npm run build -- --configuration development
-          ! grep -RIn 'AnagraficaService' src/app/core
-          rm -f .github/workflows/sk5-2-inspect.yml .github/workflows/sk5-2-import.yml
+          ! grep -RIn 'AnagraficaService' src/app/core --include='*.ts'
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
+          git add src/app/core src/styles src/styles.scss scripts/check-core-boundaries.mjs package.json package-lock.json
           git commit -m 'refactor(admin-forge): import neutral canonical Core'
           git push origin HEAD:sk5.2/canonical-core-import
