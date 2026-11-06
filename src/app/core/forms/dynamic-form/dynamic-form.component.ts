@@ -146,6 +146,9 @@ export class DynamicFormComponent {
       const parentControl = formGroup.get(parentField);
       if (!parentControl) return;
       this.parentControlSubscriptions.add(parentControl.valueChanges.subscribe(value => {
+        if (sessionStorage.getItem('forms-cascade-debug') === '1') {
+          console.debug('[forms:cascade] parent control', { field: parentField, value });
+        }
         if (this.parentValues()[parentField] !== value) {
           this.parentValues.update(values => ({ ...values, [parentField]: value }));
         }
@@ -212,7 +215,11 @@ export class DynamicFormComponent {
   }
 
   onValueChangeSelectBox(fieldName: string, event: any) {
-    
+    if (fieldName in this.parentValues() && sessionStorage.getItem('forms-cascade-debug') === '1') {
+      console.debug('[forms:cascade] select output', {
+        field: fieldName, selectedValue: event?.selectedValue, controlValue: this.form.get(fieldName)?.value
+      });
+    }
     this.onValueChange(fieldName, event.selectedValue);
     // Controllo se fieldName è un parent
     if (fieldName in this.parentValues()) {
